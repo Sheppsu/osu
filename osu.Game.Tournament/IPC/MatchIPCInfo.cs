@@ -16,5 +16,6 @@ namespace osu.Game.Tournament.IPC
         public Bindable<string> ChatChannel { get; } = new Bindable<string>();
         public BindableInt Score1 { get; } = new BindableInt();
         public BindableInt Score2 { get; } = new BindableInt();
+        public Bindable<GosuJson> GosuData { get; } = new Bindable<GosuJson>();
     }
 }

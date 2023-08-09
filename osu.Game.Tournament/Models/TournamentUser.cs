@@ -34,6 +34,9 @@ namespace osu.Game.Tournament.Models
         /// A URL to the player's profile cover.
         /// </summary>
         public string CoverUrl { get; set; } = string.Empty;
+        
+        public string Tier { get; set; } = string.Empty;
+        
 
         public APIUser ToAPIUser()
         {

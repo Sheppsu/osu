@@ -214,6 +214,8 @@ namespace osu.Game.Tournament.Screens.Editors
 
                     private readonly Bindable<int?> playerId = new Bindable<int?>();
 
+                    private readonly Bindable<string> playerTier = new Bindable<string>(string.Empty);
+
                     private readonly Container userPanelContainer;
 
                     public PlayerRow(TournamentTeam team, TournamentUser user)
@@ -249,6 +251,13 @@ namespace osu.Game.Tournament.Screens.Editors
                                         RelativeSizeAxes = Axes.None,
                                         Width = 200,
                                         Current = playerId,
+                                    },
+                                    new SettingsTextBox
+                                    {
+                                        LabelText = "Tier",
+                                        RelativeSizeAxes = Axes.None,
+                                        Width = 100,
+                                        Current = playerTier,
                                     },
                                     userPanelContainer = new Container
                                     {
@@ -291,6 +300,11 @@ namespace osu.Game.Tournament.Screens.Editors
                             }
 
                             game.PopulatePlayer(user, updatePanel, updatePanel);
+                        }, true);
+                        playerTier.Value = user.Tier;
+                        playerTier.BindValueChanged(tier => 
+                        {
+                            user.Tier = tier.NewValue;
                         }, true);
                     }
 
