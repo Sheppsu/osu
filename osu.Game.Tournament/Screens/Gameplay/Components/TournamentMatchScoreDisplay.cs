@@ -114,17 +114,23 @@ namespace osu.Game.Tournament.Screens.Gameplay.Components
         [BackgroundDependencyLoader]
         private void load(MatchIPCInfo ipc)
         {
-            Logger.Log("Loading tournament match score display", LoggingTarget.Runtime, LogLevel.Important);
             gosuData.BindValueChanged(_ => updateScores());
             gosuData.BindTo(ipc.GosuData);
             currentBeatmap.BindValueChanged(_ => updateMod());
             currentBeatmap.BindTo(ipc.Beatmap);
-            Logger.Log("Finished loading tournament match score display", LoggingTarget.Runtime, LogLevel.Important);
         }
 
         private void updateScores()
         {
-            Logger.Log("Updating score", LoggingTarget.Runtime, LogLevel.Important);
+            if (
+                gosuData.Value is null || 
+                gosuData.Value.GosuTourney is null || 
+                gosuData.Value.GosuTourney.IpcClients is null
+                ) return;
+            if (LadderInfo.CurrentMatch.Value is null) {
+                Logger.Log("Must select a match.", LoggingTarget.Runtime, LogLevel.Important);
+                return;
+            };
             var score1 = 0;
             var score2 = 0;
             var tierValue1 = 0;
@@ -135,7 +141,7 @@ namespace osu.Game.Tournament.Screens.Gameplay.Components
                 var playerInfo = getPlayerTierValue(Int32.Parse(client.Spectating.UserID));
                 if (playerInfo is null) 
                 {
-                    Logger.Log("Failed to fetch player info", LoggingTarget.Runtime, LogLevel.Important);
+                    Logger.Log("Failed to get player info", LoggingTarget.Runtime, LogLevel.Important);
                     return;
                 }
                 if (playerInfo.Team == 1)
@@ -150,7 +156,7 @@ namespace osu.Game.Tournament.Screens.Gameplay.Components
                 var scoreMultiplier = getScoreMultiplier(client.Gameplay.Mods.Num);
                 if (scoreMultiplier is null) 
                 {
-                    Logger.Log("Failed to fetch score multiplier", LoggingTarget.Runtime, LogLevel.Important);
+                    Logger.Log("Failed to get score multiplier", LoggingTarget.Runtime, LogLevel.Important);
                     return;
                 }
                 if (playerInfo.Team == 1)
@@ -163,17 +169,16 @@ namespace osu.Game.Tournament.Screens.Gameplay.Components
                 }
             }
 
-            Logger.Log("Adjusting total score values", LoggingTarget.Runtime, LogLevel.Important);
+            if (tierValue1 == 0 || tierValue2 == 0) {
+                return;
+            }
 
             if (tierValue1 != tierValue2)
             {
-                Logger.Log("Fetching picking team", LoggingTarget.Runtime, LogLevel.Important);
                 var pickingTeam = getPickingTeam();
                 if (pickingTeam is null) return;
-                Logger.Log("calculating team difference", LoggingTarget.Runtime, LogLevel.Important);
                 var biggerTeam = tierValue1 > tierValue2 ? 0 : 1;
                 var m = biggerTeam == pickingTeam ? 0.1f : 0.2f;
-                Logger.Log("finishing adjustment", LoggingTarget.Runtime, LogLevel.Important);
                 if (biggerTeam == 1)
                 {
                     score2 = (int)((float)score2 * (1.0f - m*Math.Abs(tierValue1-tierValue2)));
@@ -183,8 +188,6 @@ namespace osu.Game.Tournament.Screens.Gameplay.Components
                     score1 = (int)((float)score2 * (1.0f - m*Math.Abs(tierValue1-tierValue2)));
                 }
             }
-
-            Logger.Log("Updating score text", LoggingTarget.Runtime, LogLevel.Important);
 
             score1Text.Current.Value = score1;
             score2Text.Current.Value = score2;
