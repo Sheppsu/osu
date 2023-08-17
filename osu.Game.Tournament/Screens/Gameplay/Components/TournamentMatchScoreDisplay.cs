@@ -173,7 +173,7 @@ namespace osu.Game.Tournament.Screens.Gameplay.Components
                 return;
             }
 
-            if (tierValue1 != tierValue2)
+            if (tierValue1 != tierValue2 && currentBeatmapMod.Value != "TB")
             {
                 var pickingTeam = getPickingTeam();
                 if (pickingTeam is null) return;
