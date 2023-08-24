@@ -127,6 +127,10 @@ namespace osu.Game.Tournament.Screens.Gameplay.Components
                 gosuData.Value.GosuTourney is null || 
                 gosuData.Value.GosuTourney.IpcClients is null
                 ) return;
+			if (gosuData.Value.GosuTourney.IpcClients.Count != 4) {
+				Logger.Log("There are not 4 ipc clients");
+				return;
+			}
             if (LadderInfo.CurrentMatch.Value is null) {
                 Logger.Log("Must select a match.", LoggingTarget.Runtime, LogLevel.Important);
                 return;
@@ -138,8 +142,12 @@ namespace osu.Game.Tournament.Screens.Gameplay.Components
 
             foreach (var client in gosuData.Value.GosuTourney.IpcClients)
             {
+				if (client.Gameplay.Score == 0) {
+					return;
+				}
+				
                 var playerInfo = getPlayerTierValue(Int32.Parse(client.Spectating.UserID));
-                if (playerInfo is null) 
+                if (playerInfo is null)
                 {
                     Logger.Log("Failed to get player info", LoggingTarget.Runtime, LogLevel.Important);
                     return;
@@ -148,7 +156,7 @@ namespace osu.Game.Tournament.Screens.Gameplay.Components
                 {
                     tierValue2 += playerInfo.TierValue;
                 }
-                else
+                else if (playerInfo.Team == 0)
                 {
                     tierValue1 += playerInfo.TierValue;
                 }
@@ -163,29 +171,27 @@ namespace osu.Game.Tournament.Screens.Gameplay.Components
                 {
                     score2 += (int)((float)client.Gameplay.Score*scoreMultiplier);
                 }
-                else
+                else if (playerInfo.Team == 0)
                 {
                     score1 += (int)((float)client.Gameplay.Score*scoreMultiplier);
                 }
             }
 
-            if (tierValue1 == 0 || tierValue2 == 0) {
-                return;
-            }
+            if (tierValue1 == 0 || tierValue2 == 0) return;
 
             if (tierValue1 != tierValue2 && currentBeatmapMod.Value != "TB")
             {
                 var pickingTeam = getPickingTeam();
                 if (pickingTeam is null) return;
                 var biggerTeam = tierValue1 > tierValue2 ? 0 : 1;
-                var m = biggerTeam == pickingTeam ? 0.1f : 0.2f;
+                var m = biggerTeam == pickingTeam ? 0.08f : 0.15f;
                 if (biggerTeam == 1)
                 {
                     score2 = (int)((float)score2 * (1.0f - m*Math.Abs(tierValue1-tierValue2)));
                 }
-                else
+                else if (biggerTeam == 0)
                 {
-                    score1 = (int)((float)score2 * (1.0f - m*Math.Abs(tierValue1-tierValue2)));
+                    score1 = (int)((float)score1 * (1.0f - m*Math.Abs(tierValue1-tierValue2)));
                 }
             }
 
@@ -256,7 +262,10 @@ namespace osu.Game.Tournament.Screens.Gameplay.Components
                     team = 1;
                 }
 
-                if (player is null) return null;
+                if (player is null) {
+					Logger.Log("Unable to find player "+userId.ToString()+" on either teams", LoggingTarget.Runtime, LogLevel.Important);
+					return null;
+				}
 
                 playerInfo = new PlayerInfo
                 {
@@ -271,7 +280,7 @@ namespace osu.Game.Tournament.Screens.Gameplay.Components
         private float? getScoreMultiplier(int mods)
         {
             if (currentBeatmapMod.Value is null) return null;
-            if ((mods & 2) == 2) return 1.75f; // EZ
+            if ((mods & 2) == 2 && currentBeatmapMod.Value != "EZ") return 1.75f; // EZ
             if (currentBeatmapMod.Value != "FM" && currentBeatmapMod.Value != "HR" && (mods & 16) == 16) return 1.2f; // HR
             return 1.0f;
         }
