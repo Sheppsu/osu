@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
 using System.Linq;
-using osu.Framework.Utils;
+using MathNet.Numerics.Distributions;
 
 namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 {
@@ -34,9 +34,44 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         /// </summary>
         protected virtual double DifficultyMultiplier => DEFAULT_DIFFICULTY_MULTIPLIER;
 
-        protected OsuStrainSkill(Mod[] mods)
+        /// <summary>
+        /// Mean to be used in CDF calculation for consistency value
+        /// </summary>
+        protected virtual double ConsistencyMean => 0;
+
+        /// <summary>
+        /// Standard deviation to be used in CDF calculation for consistency value
+        /// </summary>
+        protected virtual double ConsistencyStdev => 0;
+
+        private List<double> difficultyValues = new List<double>();
+
+        private readonly double clockRate;
+
+        protected OsuStrainSkill(Mod[] mods, double clockRate)
             : base(mods)
         {
+            this.clockRate = clockRate;
+        }
+
+        private double consistencyValue()
+        {
+            double difficultyDeviation = 0.0;
+            double maxDifficulty = difficultyValues.Max();
+
+            foreach (double value in difficultyValues)
+            {
+                difficultyDeviation += maxDifficulty - value;
+            }
+
+            difficultyDeviation /= difficultyValues.Count;
+
+            return 1.0 - (difficultyDeviation / maxDifficulty);
+        }
+
+        protected void ProcessConsistency(double difficultyValue)
+        {
+            difficultyValues.Add(difficultyValue);
         }
 
         public override double DifficultyValue()
@@ -50,13 +85,6 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
 
             List<double> strains = peaks.OrderDescending().ToList();
 
-            // We are reducing the highest strains first to account for extreme difficulty spikes
-            for (int i = 0; i < Math.Min(strains.Count, ReducedSectionCount); i++)
-            {
-                double scale = Math.Log10(Interpolation.Lerp(1, 10, Math.Clamp((float)i / ReducedSectionCount, 0, 1)));
-                strains[i] *= Interpolation.Lerp(ReducedStrainBaseline, 1.0, scale);
-            }
-
             // Difficulty is the weighted sum of the highest strains from every section.
             // We're sorting from highest to lowest strain.
             foreach (double strain in strains.OrderDescending())
@@ -65,7 +93,20 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
                 weight *= DecayWeight;
             }
 
-            return difficulty * DifficultyMultiplier;
+            // Take consistency value and convert it to a normalized value based on
+            // gathered statistics across many maps
+            double consistency = consistencyValue();
+            double z = Normal.CDF(ConsistencyMean, ConsistencyStdev, consistency);
+            // Convert it to a not-so-harsh multiplier
+            double consistencyMultiplier = 0.9 + z * 0.2;
+
+            // Scale the consistency multiplier with a length multiplier
+            // This accounts for the length of consistency required
+            double lengthThreshold = 120000 / SectionLength * clockRate;
+            double lengthMultiplier = 0.9 + Math.Min(strains.Count / lengthThreshold, 1) * 0.1 +
+                (strains.Count > lengthThreshold ? Math.Log10(strains.Count / lengthThreshold) * 0.1 : 0);
+
+            return difficulty * DifficultyMultiplier * consistencyMultiplier * lengthMultiplier;
         }
     }
 }

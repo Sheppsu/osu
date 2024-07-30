@@ -13,8 +13,11 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Aim : OsuStrainSkill
     {
-        public Aim(Mod[] mods, bool withSliders)
-            : base(mods)
+        protected override double ConsistencyMean => withSliders ? 0.3351283539 : 0.31709432;
+        protected override double ConsistencyStdev => withSliders ? 0.07727181531 : 0.06992028354;
+
+        public Aim(Mod[] mods, double clockRate, bool withSliders)
+            : base(mods, clockRate)
         {
             this.withSliders = withSliders;
         }
@@ -33,7 +36,10 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         protected override double StrainValueAt(DifficultyHitObject current)
         {
             currentStrain *= strainDecay(current.DeltaTime);
-            currentStrain += AimEvaluator.EvaluateDifficultyOf(current, withSliders) * skillMultiplier;
+            double difficultyValue = AimEvaluator.EvaluateDifficultyOf(current, withSliders) * skillMultiplier;
+            currentStrain += difficultyValue;
+
+            ProcessConsistency(difficultyValue);
 
             return currentStrain;
         }

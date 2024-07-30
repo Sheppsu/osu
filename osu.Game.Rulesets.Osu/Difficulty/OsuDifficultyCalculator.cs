@@ -132,9 +132,9 @@ namespace osu.Game.Rulesets.Osu.Difficulty
         {
             var skills = new List<Skill>
             {
-                new Aim(mods, true),
-                new Aim(mods, false),
-                new Speed(mods)
+                new Aim(mods, clockRate, true),
+                new Aim(mods, clockRate, false),
+                new Speed(mods, clockRate)
             };
 
             if (mods.Any(h => h is OsuModFlashlight))

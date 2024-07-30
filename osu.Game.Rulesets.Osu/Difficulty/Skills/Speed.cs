@@ -25,10 +25,13 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         protected override int ReducedSectionCount => 5;
         protected override double DifficultyMultiplier => 1.04;
 
+        protected override double ConsistencyMean => 0.5900319072;
+        protected override double ConsistencyStdev => 0.08231701172;
+
         private readonly List<double> objectStrains = new List<double>();
 
-        public Speed(Mod[] mods)
-            : base(mods)
+        public Speed(Mod[] mods, double clockRate)
+            : base(mods, clockRate)
         {
         }
 
@@ -39,9 +42,12 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         protected override double StrainValueAt(DifficultyHitObject current)
         {
             currentStrain *= strainDecay(((OsuDifficultyHitObject)current).StrainTime);
-            currentStrain += SpeedEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
+            double speedDifficultyValue = SpeedEvaluator.EvaluateDifficultyOf(current) * skillMultiplier;
+            currentStrain += speedDifficultyValue;
 
             currentRhythm = RhythmEvaluator.EvaluateDifficultyOf(current);
+
+            ProcessConsistency(speedDifficultyValue * currentRhythm);
 
             double totalStrain = currentStrain * currentRhythm;
 
