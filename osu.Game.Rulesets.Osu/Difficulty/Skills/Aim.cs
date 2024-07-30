@@ -13,8 +13,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
     /// </summary>
     public class Aim : OsuStrainSkill
     {
-        protected override double ConsistencyMean => withSliders ? 0.3351283539 : 0.31709432;
-        protected override double ConsistencyStdev => withSliders ? 0.07727181531 : 0.06992028354;
+        protected override double ConsistencyMean => withSliders ? 0.3351325923 : 0.31709432;
+        protected override double ConsistencyStdev => withSliders ? 0.07726711483 : 0.06992028354;
 
         public Aim(Mod[] mods, double clockRate, bool withSliders)
             : base(mods, clockRate)

@@ -25,8 +25,8 @@ namespace osu.Game.Rulesets.Osu.Difficulty.Skills
         protected override int ReducedSectionCount => 5;
         protected override double DifficultyMultiplier => 1.04;
 
-        protected override double ConsistencyMean => 0.5900319072;
-        protected override double ConsistencyStdev => 0.08231701172;
+        protected override double ConsistencyMean => 0.5900352945;
+        protected override double ConsistencyStdev => 0.08231447327;
 
         private readonly List<double> objectStrains = new List<double>();
 
