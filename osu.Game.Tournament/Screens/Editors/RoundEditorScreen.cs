@@ -41,7 +41,7 @@ namespace osu.Game.Tournament.Screens.Editors
                 Masking = true;
                 CornerRadius = 10;
 
-                RoundBeatmapEditor beatmapEditor = new RoundBeatmapEditor(round)
+                RoundGroupEditor groupEditor = new RoundGroupEditor(round)
                 {
                     Width = 0.95f
                 };
@@ -98,36 +98,47 @@ namespace osu.Game.Tournament.Screens.Editors
                                 Width = 0.2f,
                                 Margin = new MarginPadding(10),
                                 Text = "Add beatmap",
-                                Action = beatmapEditor.CreateNew
+                                Action = groupEditor.CreateNew
                             },
-                            beatmapEditor
+                            new DangerousSettingsButton
+                            {
+                                Width = 0.2f,
+                                Margin = new MarginPadding(10),
+                                Text = "Delete Round",
+                                Action = () => dialogOverlay?.Push(new DeleteRoundDialog(Model, () =>
+                                {
+                                    Expire();
+                                    ladderInfo.Rounds.Remove(Model);
+                                }))
+                            },
+                            groupEditor
                         }
                     },
-                    new DangerousSettingsButton
-                    {
-                        Anchor = Anchor.CentreRight,
-                        Origin = Anchor.CentreRight,
-                        RelativeSizeAxes = Axes.None,
-                        Width = 150,
-                        Text = "Delete Round",
-                        Action = () => dialogOverlay?.Push(new DeleteRoundDialog(Model, () =>
-                        {
-                            Expire();
-                            ladderInfo.Rounds.Remove(Model);
-                        }))
-                    }
+                    // new DangerousSettingsButton
+                    // {
+                    //     Anchor = Anchor.CentreRight,
+                    //     Origin = Anchor.CentreRight,
+                    //     RelativeSizeAxes = Axes.None,
+                    //     Width = 150,
+                    //     Text = "Delete Round",
+                    //     Action = () => dialogOverlay?.Push(new DeleteRoundDialog(Model, () =>
+                    //     {
+                    //         Expire();
+                    //         ladderInfo.Rounds.Remove(Model);
+                    //     }))
+                    // }
                 };
 
                 RelativeSizeAxes = Axes.X;
                 AutoSizeAxes = Axes.Y;
             }
 
-            public partial class RoundBeatmapEditor : CompositeDrawable
+            public partial class RoundGroupEditor : CompositeDrawable
             {
                 private readonly TournamentRound round;
                 private readonly FillFlowContainer flow;
 
-                public RoundBeatmapEditor(TournamentRound round)
+                public RoundGroupEditor(TournamentRound round)
                 {
                     this.round = round;
 
@@ -139,7 +150,106 @@ namespace osu.Game.Tournament.Screens.Editors
                         RelativeSizeAxes = Axes.X,
                         AutoSizeAxes = Axes.Y,
                         Direction = FillDirection.Vertical,
-                        ChildrenEnumerable = round.Beatmaps.Select(p => new RoundBeatmapRow(round, p))
+                        ChildrenEnumerable = round.RoundGroups.Select(p => new RoundGroupRow(round, p))
+                    };
+                }
+
+                public void CreateNew()
+                {
+                    var rg = new TournamentRoundGroup();
+
+                    round.RoundGroups.Add(rg);
+
+                    flow.Add(new RoundGroupRow(round, rg));
+                }
+
+                public partial class RoundGroupRow : CompositeDrawable
+                {
+                    public TournamentRoundGroup Model { get; }
+
+                    public RoundGroupRow(TournamentRound round, TournamentRoundGroup roundGroup)
+                    {
+                        Model = roundGroup;
+
+                        Margin = new MarginPadding(10);
+
+                        RelativeSizeAxes = Axes.X;
+                        AutoSizeAxes = Axes.Y;
+
+                        Masking = true;
+                        CornerRadius = 7.5f;
+
+                        RoundBeatmapEditor beatmapEditor = new RoundBeatmapEditor(roundGroup)
+                        {
+                            Width = 0.95f
+                        };
+
+                        InternalChildren = new Drawable[]
+                        {
+                            new Box
+                            {
+                                Colour = OsuColour.Gray(0.15f),
+                                RelativeSizeAxes = Axes.Both,
+                            },
+                            new FillFlowContainer
+                            {
+                                Margin = new MarginPadding(5),
+                                Spacing = new Vector2(5),
+                                Direction = FillDirection.Full,
+                                RelativeSizeAxes = Axes.X,
+                                AutoSizeAxes = Axes.Y,
+                                Children = new Drawable[]
+                                {
+                                    new SettingsTextBox
+                                    {
+                                        LabelText = "Name",
+                                        Width = 0.30f,
+                                        Current = Model.Name,
+                                    },
+                                    new SettingsButton
+                                    {
+                                        Width = 0.30f,
+                                        Margin = new MarginPadding(10),
+                                        Text = "Add beatmap",
+                                        Action = () => beatmapEditor.CreateNew()
+                                    },
+                                    new DangerousSettingsButton
+                                    {
+                                        Width = 0.30f,
+                                        Margin = new MarginPadding(10),
+                                        Text = "Delete Group",
+                                        Action = () =>
+                                        {
+                                            Expire();
+                                            round.RoundGroups.Remove(roundGroup);
+                                        },
+                                    },
+                                    beatmapEditor,
+                                }
+                            }
+                        };
+                    }
+                }
+            }
+
+            public partial class RoundBeatmapEditor : CompositeDrawable
+            {
+                private readonly TournamentRoundGroup roundGroup;
+                private readonly FillFlowContainer flow;
+
+                public RoundBeatmapEditor(TournamentRoundGroup roundGroup)
+                {
+                    this.roundGroup = roundGroup;
+
+                    RelativeSizeAxes = Axes.X;
+                    AutoSizeAxes = Axes.Y;
+
+                    InternalChild = flow = new FillFlowContainer
+                    {
+                        RelativeSizeAxes = Axes.X,
+                        AutoSizeAxes = Axes.Y,
+                        Direction = FillDirection.Vertical,
+                        ChildrenEnumerable = roundGroup.Beatmaps.Select(p => new RoundBeatmapRow(roundGroup, p))
                     };
                 }
 
@@ -147,9 +257,9 @@ namespace osu.Game.Tournament.Screens.Editors
                 {
                     var b = new RoundBeatmap();
 
-                    round.Beatmaps.Add(b);
+                    roundGroup.Beatmaps.Add(b);
 
-                    flow.Add(new RoundBeatmapRow(round, b));
+                    flow.Add(new RoundBeatmapRow(roundGroup, b));
                 }
 
                 public partial class RoundBeatmapRow : CompositeDrawable
@@ -165,7 +275,7 @@ namespace osu.Game.Tournament.Screens.Editors
 
                     private readonly Container drawableContainer;
 
-                    public RoundBeatmapRow(TournamentRound team, RoundBeatmap beatmap)
+                    public RoundBeatmapRow(TournamentRoundGroup roundGroup, RoundBeatmap beatmap)
                     {
                         Model = beatmap;
 
@@ -223,7 +333,7 @@ namespace osu.Game.Tournament.Screens.Editors
                                 Action = () =>
                                 {
                                     Expire();
-                                    team.Beatmaps.Remove(beatmap);
+                                    roundGroup.Beatmaps.Remove(beatmap);
                                 },
                             }
                         };
