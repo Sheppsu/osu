@@ -1,6 +1,7 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System.IO;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -15,11 +16,12 @@ using osu.Game.Extensions;
 using osu.Game.Graphics;
 using osu.Game.Models;
 using osu.Game.Rulesets;
-using osu.Game.Rulesets.Mods;
 using osu.Game.Screens.Menu;
+using osu.Game.Tournament.Tosu;
 using osu.Game.Utils;
 using osuTK;
 using osuTK.Graphics;
+using Logger = osu.Framework.Logging.Logger;
 
 namespace osu.Game.Tournament.Components
 {
@@ -52,6 +54,7 @@ namespace osu.Game.Tournament.Components
             set
             {
                 mods = value;
+
                 refreshContent();
             }
         }
@@ -76,6 +79,8 @@ namespace osu.Game.Tournament.Components
         [BackgroundDependencyLoader]
         private void load(OsuColour colours)
         {
+            Logger.Log("loaded songbar");
+
             RelativeSizeAxes = Axes.X;
             AutoSizeAxes = Axes.Y;
 
@@ -126,20 +131,44 @@ namespace osu.Game.Tournament.Components
             };
 
             var rulesetInstance = ruleset.Value.CreateInstance();
-
             var convertedMods = rulesetInstance.ConvertFromLegacyMods(mods).ToList();
-            var adjustedDifficulty = rulesetInstance.GetAdjustedDisplayDifficulty(beatmap, convertedMods);
+
+            double starRating;
+            double ar;
+            double cs;
+            double od;
+            double hp;
+
+            var tosuData = TosuData.Fetch();
+            var beatmapPath = tosuData?.Menu?.Beatmap?.Path;
+            string? songsPath = tosuData?.Settings?.Folders?.Songs;
+
+            if (beatmapPath != null && beatmapPath.Folder != string.Empty && beatmapPath.File != string.Empty && !string.IsNullOrEmpty(songsPath))
+            {
+                string osuFilePath = Path.Join(songsPath, beatmapPath.Folder, beatmapPath.File);
+                var workingBeatmap = new FlatWorkingBeatmap(osuFilePath);
+                var calc = rulesetInstance.CreateDifficultyCalculator(workingBeatmap);
+                var difficulty = calc.Calculate(convertedMods);
+                var adjustedDifficulty = rulesetInstance.GetAdjustedDisplayDifficulty(workingBeatmap.BeatmapInfo, convertedMods);
+                ar = adjustedDifficulty.ApproachRate;
+                cs = adjustedDifficulty.CircleSize;
+                od = adjustedDifficulty.OverallDifficulty;
+                hp = adjustedDifficulty.DrainRate;
+                starRating = difficulty.StarRating;
+            }
+            else
+            {
+                var adjustedDifficulty = rulesetInstance.GetAdjustedDisplayDifficulty(beatmap, convertedMods);
+                ar = adjustedDifficulty.ApproachRate;
+                cs = adjustedDifficulty.CircleSize;
+                od = adjustedDifficulty.OverallDifficulty;
+                hp = adjustedDifficulty.DrainRate;
+                starRating = beatmap.StarRating;
+            }
 
             double rate = ModUtils.CalculateRateWithMods(convertedMods);
             double bpm = FormatUtils.RoundBPM(beatmap.BPM, rate);
             double length = beatmap.Length / rate;
-
-            string srExtra = "";
-
-            if (convertedMods.Any(x => x is ModHardRock) || convertedMods.Any(x => x is ModDoubleTime))
-            {
-                srExtra = "*";
-            }
 
             (string heading, string content)[] stats;
 
@@ -148,9 +177,9 @@ namespace osu.Game.Tournament.Components
                 default:
                     stats = new (string heading, string content)[]
                     {
-                        ("CS", $"{adjustedDifficulty.CircleSize:0.#}"),
-                        ("AR", $"{adjustedDifficulty.ApproachRate:0.#}"),
-                        ("OD", $"{adjustedDifficulty.OverallDifficulty:0.#}"),
+                        ("CS", $"{cs:0.#}"),
+                        ("AR", $"{ar:0.#}"),
+                        ("OD", $"{od:0.#}"),
                     };
                     break;
 
@@ -158,16 +187,16 @@ namespace osu.Game.Tournament.Components
                 case 3:
                     stats = new (string heading, string content)[]
                     {
-                        ("OD", $"{adjustedDifficulty.OverallDifficulty:0.#}"),
-                        ("HP", $"{adjustedDifficulty.DrainRate:0.#}")
+                        ("OD", $"{od:0.#}"),
+                        ("HP", $"{hp:0.#}")
                     };
                     break;
 
                 case 2:
                     stats = new (string heading, string content)[]
                     {
-                        ("CS", $"{adjustedDifficulty.CircleSize:0.#}"),
-                        ("AR", $"{adjustedDifficulty.ApproachRate:0.#}"),
+                        ("CS", $"{cs:0.#}"),
+                        ("AR", $"{ar:0.#}"),
                     };
                     break;
             }
@@ -202,7 +231,7 @@ namespace osu.Game.Tournament.Components
                                         Children = new Drawable[]
                                         {
                                             new DiffPiece(stats),
-                                            new DiffPiece(("Star Rating", $"{beatmap.StarRating.FormatStarRating()}{srExtra}"))
+                                            new DiffPiece(("Star Rating", $"{starRating.FormatStarRating()}"))
                                         }
                                     },
                                     new FillFlowContainer
