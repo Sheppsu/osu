@@ -45,8 +45,12 @@ namespace osu.Game.Tournament.Screens
             SongBar.Beatmap = beatmap.NewValue;
 
             BindableList<TournamentRoundGroup>? roundGroups = LadderInfo.CurrentMatch.Value?.Round.Value?.RoundGroups;
+
             if (roundGroups == null || LadderInfo.Ruleset.Value == null || beatmap.NewValue == null)
+            {
+                SongBar.Mods = 0;
                 return;
+            }
 
             string bmMods = string.Empty;
 
@@ -65,7 +69,10 @@ namespace osu.Game.Tournament.Screens
             search_done:
 
             if (bmMods == string.Empty)
+            {
+                SongBar.Mods = 0;
                 return;
+            }
 
             List<Mod> mods = new List<Mod>(4);
             Ruleset ruleset = LadderInfo.Ruleset.Value.CreateInstance();

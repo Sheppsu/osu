@@ -34,6 +34,9 @@ namespace osu.Game.Tournament.Models
         [JsonIgnore]
         public readonly Bindable<TournamentTeam?> Team1 = new Bindable<TournamentTeam?>();
 
+        [JsonIgnore]
+        public Bindable<TeamColour> LastWin = new Bindable<TeamColour>(TeamColour.Red);
+
         public string? Team1Acronym;
 
         public readonly Bindable<int?> Team1Score = new Bindable<int?>();

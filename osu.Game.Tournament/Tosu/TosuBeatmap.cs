@@ -12,5 +12,8 @@ namespace osu.Game.Tournament.Tosu
 
         [JsonProperty("path")]
         public TosuBeatmapPath? Path;
+
+        [JsonProperty("id")]
+        public int ID;
     }
 }

@@ -96,6 +96,12 @@ namespace osu.Game.Tournament.Screens.Gameplay
                 {
                     Children = new Drawable[]
                     {
+                        new TourneyButton
+                        {
+                            RelativeSizeAxes = Axes.X,
+                            Text = "Refresh song bar",
+                            Action = SongBar.RefreshContent
+                        },
                         new LabelledSwitchButton
                         {
                             Label = "Warmup",

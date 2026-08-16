@@ -108,6 +108,11 @@ namespace osu.Game.Tournament.Components
             Expanded = true;
         }
 
+        public void RefreshContent()
+        {
+            refreshContent();
+        }
+
         private void refreshContent()
         {
             beatmap ??= new BeatmapInfo
@@ -143,12 +148,12 @@ namespace osu.Game.Tournament.Components
             var beatmapPath = tosuData?.Menu?.Beatmap?.Path;
             string? songsPath = tosuData?.Settings?.Folders?.Songs;
 
-            if (beatmapPath != null && beatmapPath.Folder != string.Empty && beatmapPath.File != string.Empty && !string.IsNullOrEmpty(songsPath))
+            if (beatmapPath != null && beatmapPath.Folder != string.Empty && beatmapPath.File != string.Empty && !string.IsNullOrEmpty(songsPath) && tosuData!.Menu!.Beatmap!.ID == beatmap.OnlineID)
             {
                 string osuFilePath = Path.Join(songsPath, beatmapPath.Folder, beatmapPath.File);
                 var workingBeatmap = new FlatWorkingBeatmap(osuFilePath);
                 var calc = rulesetInstance.CreateDifficultyCalculator(workingBeatmap);
-                var difficulty = calc.Calculate(convertedMods);
+                var difficulty = calc.Calculate(convertedMods.Where(m => m.Acronym != "HT"));
                 var adjustedDifficulty = rulesetInstance.GetAdjustedDisplayDifficulty(workingBeatmap.BeatmapInfo, convertedMods);
                 ar = adjustedDifficulty.ApproachRate;
                 cs = adjustedDifficulty.CircleSize;

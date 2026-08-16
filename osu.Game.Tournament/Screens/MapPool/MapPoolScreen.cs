@@ -129,9 +129,7 @@ namespace osu.Game.Tournament.Screens.MapPool
             if (CurrentMatch.Value?.Round.Value == null)
                 return;
 
-            int totalBansRequired = CurrentMatch.Value.Round.Value.BanCount.Value * 2;
-
-            if (CurrentMatch.Value.PicksBans.Count(p => p.Type == ChoiceType.Ban) < totalBansRequired)
+            if (!CurrentMatch.Value.PicksBans.Any(p => p.Type == ChoiceType.Pick && p.Team == TeamColour.Purple))
                 return;
 
             // if bans have already been placed, beatmap changes result in a selection being made automatically
@@ -159,6 +157,7 @@ namespace osu.Game.Tournament.Screens.MapPool
 
             int totalBansRequired;
             var strikeGroup = CurrentMatch.Value.Round.Value.RoundGroups.FirstOrDefault(rg => rg.Name.Value == "S");
+
             if (strikeGroup == null)
             {
                 totalBansRequired = CurrentMatch.Value.Round.Value.BanCount.Value * 2;
@@ -168,23 +167,36 @@ namespace osu.Game.Tournament.Screens.MapPool
                 totalBansRequired = strikeGroup.Beatmaps.Count - 1;
             }
 
-            TeamColour lastPickColour = CurrentMatch.Value.PicksBans.LastOrDefault()?.Team ?? TeamColour.Red;
-
             TeamColour nextColour;
 
-            bool hasAllBans = CurrentMatch.Value.PicksBans.Count(p => p.Type == ChoiceType.Ban) >= totalBansRequired;
+            int nBans = CurrentMatch.Value.PicksBans.Count(p => p.Type == ChoiceType.Ban);
+            bool hasAllBans = nBans >= totalBansRequired || CurrentMatch.Value.PicksBans.Any(p => p.Team == TeamColour.Purple);
 
             if (!hasAllBans)
             {
-                // Ban phase: switch teams every second ban.
-                nextColour = getOppositeTeamColour(lastPickColour);
+                TeamColour colour;
+
+                if (nBans > 1)
+                {
+                    colour = CurrentMatch.Value.PicksBans.Where(p => p.Type == ChoiceType.Ban).ElementAt(nBans - 2).Team;
+                }
+                else if (nBans == 1)
+                {
+                    colour = CurrentMatch.Value.PicksBans.Last(p => p.Type == ChoiceType.Ban).Team;
+                }
+                else
+                {
+                    colour = TeamColour.Red;
+                }
+
+                nextColour = getOppositeTeamColour(colour);
             }
             else
             {
                 // Pick phase : switch teams every pick, except for the first pick which generally goes to the team that placed the last ban.
                 nextColour = pickType == ChoiceType.Pick
-                    ? getOppositeTeamColour(lastPickColour)
-                    : lastPickColour;
+                    ? getOppositeTeamColour(CurrentMatch.Value.LastWin.Value)
+                    : CurrentMatch.Value.LastWin.Value;
             }
 
             setMode(nextColour, hasAllBans ? ChoiceType.Pick : ChoiceType.Ban);
@@ -244,6 +256,7 @@ namespace osu.Game.Tournament.Screens.MapPool
             });
 
             var strikeGroup = CurrentMatch.Value.Round.Value.RoundGroups.FirstOrDefault(rg => rg?.Name.Value == "S", null);
+
             if (strikeGroup != null)
             {
                 var unstrikenMaps = strikeGroup.Beatmaps.Where(b1 => !CurrentMatch.Value.PicksBans.Any(b2 => b2.Type == ChoiceType.Ban && b1.ID == b2.BeatmapID));
@@ -282,6 +295,10 @@ namespace osu.Game.Tournament.Screens.MapPool
         protected override void CurrentMatchChanged(ValueChangedEvent<TournamentMatch?> match)
         {
             base.CurrentMatchChanged(match);
+
+            match.OldValue?.LastWin.UnbindAll();
+            match.NewValue?.LastWin.BindValueChanged(_ => setNextMode());
+
             updateDisplay();
         }
 

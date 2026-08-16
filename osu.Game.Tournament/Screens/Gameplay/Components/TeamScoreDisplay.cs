@@ -69,6 +69,13 @@ namespace osu.Game.Tournament.Screens.Gameplay.Components
                 match.StartMatch();
 
                 currentTeamScore.BindTo(teamColour == TeamColour.Red ? match.Team1Score : match.Team2Score);
+                currentTeamScore.BindValueChanged(change =>
+                {
+                    if (currentMatch.Value != null && change.NewValue != null && (change.OldValue == null || change.NewValue > change.OldValue))
+                    {
+                        currentMatch.Value.LastWin.Value = teamColour;
+                    }
+                });
                 currentTeam.BindTo(teamColour == TeamColour.Red ? match.Team1 : match.Team2);
             }
 
@@ -84,6 +91,7 @@ namespace osu.Game.Tournament.Screens.Gameplay.Components
                 case MouseButton.Left:
                     if (currentTeamScore.Value < currentMatch.Value?.PointsToWin)
                         currentTeamScore.Value++;
+
                     return true;
 
                 case MouseButton.Right:
