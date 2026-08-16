@@ -153,8 +153,9 @@ namespace osu.Game.Tournament.Components
                 string osuFilePath = Path.Join(songsPath, beatmapPath.Folder, beatmapPath.File);
                 var workingBeatmap = new FlatWorkingBeatmap(osuFilePath);
                 var calc = rulesetInstance.CreateDifficultyCalculator(workingBeatmap);
-                var difficulty = calc.Calculate(convertedMods.Where(m => m.Acronym != "HT"));
-                var adjustedDifficulty = rulesetInstance.GetAdjustedDisplayDifficulty(workingBeatmap.BeatmapInfo, convertedMods);
+                var modsWithoutHt = convertedMods.Where(m => m.Acronym != "HT").ToArray();
+                var difficulty = calc.Calculate(modsWithoutHt);
+                var adjustedDifficulty = rulesetInstance.GetAdjustedDisplayDifficulty(workingBeatmap.BeatmapInfo, modsWithoutHt);
                 ar = adjustedDifficulty.ApproachRate;
                 cs = adjustedDifficulty.CircleSize;
                 od = adjustedDifficulty.OverallDifficulty;
