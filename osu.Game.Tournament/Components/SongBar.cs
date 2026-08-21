@@ -1,6 +1,7 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using osu.Framework.Allocation;
@@ -10,25 +11,23 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Primitives;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Threading;
 using osu.Game.Beatmaps;
-using osu.Game.Beatmaps.Legacy;
 using osu.Game.Extensions;
 using osu.Game.Graphics;
 using osu.Game.Models;
 using osu.Game.Rulesets;
+using osu.Game.Rulesets.Mods;
 using osu.Game.Screens.Menu;
 using osu.Game.Tournament.Tosu;
 using osu.Game.Utils;
 using osuTK;
 using osuTK.Graphics;
-using Logger = osu.Framework.Logging.Logger;
 
 namespace osu.Game.Tournament.Components
 {
     public partial class SongBar : CompositeDrawable
     {
-        private IBeatmapInfo? beatmap;
-
         public const float HEIGHT = 145 / 2f;
 
         [Resolved]
@@ -36,28 +35,49 @@ namespace osu.Game.Tournament.Components
 
         public IBeatmapInfo? Beatmap
         {
-            set
-            {
-                if (beatmap == value)
-                    return;
-
-                beatmap = value;
-                refreshContent();
-            }
+            get;
+            private set;
         }
 
-        private LegacyMods mods;
-
-        public LegacyMods Mods
+        public void UpdateBeatmap(IBeatmapInfo? newBeatmap, string newPoolMods = "")
         {
-            get => mods;
-            set
-            {
-                mods = value;
+            if (Beatmap == newBeatmap && poolMods == newPoolMods)
+                return;
 
-                refreshContent();
+            Beatmap = newBeatmap;
+            poolMods = newPoolMods;
+
+            mods.Clear();
+            Ruleset rulesetInst = ruleset.Value.CreateInstance();
+
+            for (int i = 0; i < newPoolMods.Length;)
+            {
+                bool isOptional = newPoolMods.Substring(i, 1) == "(";
+
+                if (isOptional)
+                {
+                    i += 4;
+                    continue;
+                }
+
+                string acronym = newPoolMods.Substring(i, 2);
+                Mod? mod = rulesetInst.CreateModFromAcronym(acronym);
+
+                if (mod != null)
+                {
+                    mods.Add(mod);
+                }
+
+                i += 2;
             }
+
+            refreshContent();
         }
+
+        private readonly List<Mod> mods = new List<Mod>(4);
+        private string poolMods = "";
+
+        private ScheduledDelegate? scheduledRefresh;
 
         private FillFlowContainer flow = null!;
 
@@ -79,8 +99,6 @@ namespace osu.Game.Tournament.Components
         [BackgroundDependencyLoader]
         private void load(OsuColour colours)
         {
-            Logger.Log("loaded songbar");
-
             RelativeSizeAxes = Axes.X;
             AutoSizeAxes = Axes.Y;
 
@@ -106,6 +124,8 @@ namespace osu.Game.Tournament.Components
             };
 
             Expanded = true;
+
+            refreshContent();
         }
 
         public void RefreshContent()
@@ -115,7 +135,10 @@ namespace osu.Game.Tournament.Components
 
         private void refreshContent()
         {
-            beatmap ??= new BeatmapInfo
+            scheduledRefresh?.Cancel();
+            scheduledRefresh = null;
+
+            Beatmap ??= new BeatmapInfo
             {
                 Metadata = new BeatmapMetadata
                 {
@@ -136,7 +159,6 @@ namespace osu.Game.Tournament.Components
             };
 
             var rulesetInstance = ruleset.Value.CreateInstance();
-            var convertedMods = rulesetInstance.ConvertFromLegacyMods(mods).ToList();
 
             double starRating;
             double ar;
@@ -147,13 +169,14 @@ namespace osu.Game.Tournament.Components
             var tosuData = TosuData.Fetch();
             var beatmapPath = tosuData?.Menu?.Beatmap?.Path;
             string? songsPath = tosuData?.Settings?.Folders?.Songs;
+            bool dataIsValid = beatmapPath != null && beatmapPath.Folder != string.Empty && beatmapPath.File != string.Empty && !string.IsNullOrEmpty(songsPath);
 
-            if (beatmapPath != null && beatmapPath.Folder != string.Empty && beatmapPath.File != string.Empty && !string.IsNullOrEmpty(songsPath) && tosuData!.Menu!.Beatmap!.ID == beatmap.OnlineID)
+            if (dataIsValid && tosuData!.Menu!.Beatmap!.ID == Beatmap.OnlineID)
             {
-                string osuFilePath = Path.Join(songsPath, beatmapPath.Folder, beatmapPath.File);
+                string osuFilePath = Path.Join(songsPath, beatmapPath!.Folder, beatmapPath.File);
                 var workingBeatmap = new FlatWorkingBeatmap(osuFilePath);
                 var calc = rulesetInstance.CreateDifficultyCalculator(workingBeatmap);
-                var modsWithoutHt = convertedMods.Where(m => m.Acronym != "HT").ToArray();
+                var modsWithoutHt = mods.Where(m => m.Acronym != "HT").ToArray();
                 var difficulty = calc.Calculate(modsWithoutHt);
                 var adjustedDifficulty = rulesetInstance.GetAdjustedDisplayDifficulty(workingBeatmap.BeatmapInfo, modsWithoutHt);
                 ar = adjustedDifficulty.ApproachRate;
@@ -164,17 +187,27 @@ namespace osu.Game.Tournament.Components
             }
             else
             {
-                var adjustedDifficulty = rulesetInstance.GetAdjustedDisplayDifficulty(beatmap, convertedMods);
+                // waiting for the right beatmap on tosu
+                if (dataIsValid && Beatmap.OnlineID != -1)
+                {
+                    scheduledRefresh = Scheduler.AddDelayed(() =>
+                    {
+                        scheduledRefresh = null;
+                        refreshContent();
+                    }, 500);
+                }
+
+                var adjustedDifficulty = rulesetInstance.GetAdjustedDisplayDifficulty(Beatmap, mods);
                 ar = adjustedDifficulty.ApproachRate;
                 cs = adjustedDifficulty.CircleSize;
                 od = adjustedDifficulty.OverallDifficulty;
                 hp = adjustedDifficulty.DrainRate;
-                starRating = beatmap.StarRating;
+                starRating = Beatmap.StarRating;
             }
 
-            double rate = ModUtils.CalculateRateWithMods(convertedMods);
-            double bpm = FormatUtils.RoundBPM(beatmap.BPM, rate);
-            double length = beatmap.Length / rate;
+            double rate = ModUtils.CalculateRateWithMods(mods);
+            double bpm = FormatUtils.RoundBPM(Beatmap.BPM, rate);
+            double length = Beatmap.Length / rate;
 
             (string heading, string content)[] stats;
 
@@ -280,7 +313,7 @@ namespace osu.Game.Tournament.Components
                         }
                     }
                 },
-                new TournamentBeatmapPanel(beatmap)
+                new TournamentBeatmapPanel(Beatmap, poolMods)
                 {
                     RelativeSizeAxes = Axes.X,
                     Width = 0.5f,

@@ -235,6 +235,23 @@ namespace osu.Game.Tournament.Screens.MapPool
             setNextMode();
         }
 
+        private void removeBans()
+        {
+            int i = 0;
+
+            while (i < CurrentMatch.Value.PicksBans.Count)
+            {
+                if (CurrentMatch.Value.PicksBans[i].Type == ChoiceType.Ban)
+                {
+                    CurrentMatch.Value.PicksBans.RemoveAt(i);
+                }
+                else
+                {
+                    i++;
+                }
+            }
+        }
+
         private void addForBeatmap(int beatmapId)
         {
             if (CurrentMatch.Value?.Round.Value == null)
@@ -270,6 +287,7 @@ namespace osu.Game.Tournament.Screens.MapPool
                         pickColour = TeamColour.Purple;
                         pickType = ChoiceType.Pick;
                         addForBeatmap(beatmap.OnlineID);
+                        removeBans();
                     }
                 }
             }
