@@ -9,11 +9,13 @@ using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
+using osu.Framework.Graphics.Sprites;
 using osu.Framework.Localisation;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Drawables;
 using osu.Game.Graphics;
 using osu.Game.Tournament.Models;
+using osuTK;
 using osuTK.Graphics;
 
 namespace osu.Game.Tournament.Components
@@ -144,10 +146,31 @@ namespace osu.Game.Tournament.Components
 
                     if (isOptional)
                     {
-                        icon.Alpha = 0.65F;
+                        var newIcon = new Container
+                        {
+                            Anchor = Anchor.CentreRight,
+                            Origin = Anchor.CentreRight,
+                            Width = 60,
+                            RelativeSizeAxes = Axes.Y,
+                            Children = new Drawable[]
+                            {
+                                icon,
+                                new SpriteIcon
+                                {
+                                    Anchor = Anchor.Centre,
+                                    Origin = Anchor.Centre,
+                                    Icon = FontAwesome.Solid.Question,
+                                    Size = new Vector2(20),
+                                    Alpha = 0.8f,
+                                }
+                            }
+                        };
+                        modsContainer.Insert(mods.Length - 1, newIcon);
                     }
-
-                    modsContainer.Insert(mods.Length - i, icon);
+                    else
+                    {
+                        modsContainer.Insert(mods.Length - i, icon);
+                    }
 
                     i += isOptional ? 4 : 2;
                 }
